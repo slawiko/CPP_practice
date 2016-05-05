@@ -10,9 +10,8 @@
 #define MAX_LOADSTRING 100
 
 // Global Variables:
-class Config
+struct Config
 {
-public:
 	LPWSTR text;
 	Gdiplus::Font * font;
 	Gdiplus::Color * fillColor;
@@ -23,7 +22,7 @@ public:
 	bool antialiasing;
 	Config()
 	{
-		this->text = L"TEXT";
+ 		this->text = L"TEXT";
 		this->font = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 24);
 		this->fillColor = new Gdiplus::Color(Gdiplus::Color::Black);
 		this->outlineColor = new Gdiplus::Color(Gdiplus::Color::Red);
@@ -33,10 +32,10 @@ public:
 		this->antialiasing = FALSE;
 	}
 };
+Config * config;
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
-Config * conf;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -53,8 +52,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    
-
+	// TODO: Place code here.
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 	ULONG_PTR gdiplusToken;
 	Gdiplus::Status status = GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
@@ -63,8 +61,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return FALSE;
 	}
 
-	// TODO: Place code here.
-	conf = new Config();
+	config = new Config();
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -190,12 +187,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
 			Gdiplus::Graphics g(hdc);
-			Gdiplus::SolidBrush * brush = new Gdiplus::SolidBrush(*conf->fillColor);
-			//Gdiplus::Status status = g.DrawString(settings.text, -1, settings.font, *settings.position, brush);
-			Gdiplus::Font font(&Gdiplus::FontFamily(L"Times new roman"), 24);
-
-			Gdiplus::Status status = g.DrawString(conf->text, -1, conf->font, *conf->position, brush);
-			
+			Gdiplus::SolidBrush * brush = new Gdiplus::SolidBrush(*config->fillColor);
+			Gdiplus::Status status = g.DrawString(config->text, -1, config->font, *config->position, brush);
             EndPaint(hWnd, &ps);
         }
         break;
@@ -244,7 +237,7 @@ INT_PTR CALLBACK Settings(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		if (LOWORD(wParam) == IDOK)
 		{
-			GetDlgItemText(hDlg, IDC_TEXT, conf->text, 100);
+			GetDlgItemText(hDlg, IDC_TEXT, config->text, 100);
 			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
 		}
