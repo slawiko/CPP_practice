@@ -27,7 +27,7 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Gdi_1.h">
+    <ClInclude Include="WinAPI_2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,21 +35,21 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Gdi_1.cpp">
+    <ClCompile Include="WinAPI_2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="WinAPI_2.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Gdi_1.ico">
+    <Image Include="WinAPI_2.ico">
       <Filter>Resource Files</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Gdi_1.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
   </ItemGroup>
 </Project>
