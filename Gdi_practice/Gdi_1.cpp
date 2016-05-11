@@ -14,20 +14,24 @@ struct Config
 {
 	LPWSTR text;
 	Gdiplus::Font * font;
+	Gdiplus::Font * tempFont;
 	Gdiplus::Color * fillColor;
 	Gdiplus::Color * outlineColor;
 	Gdiplus::Color * backgroundColor;
 	Gdiplus::PointF * position;
+	Gdiplus::PointF * tempPosition;
 	float scale;
 	bool antialiasing;
 	Config()
 	{
  		this->text = L"TEXT";
 		this->font = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 24);
+		this->tempFont = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 25);
 		this->fillColor = new Gdiplus::Color(Gdiplus::Color::Black);
 		this->outlineColor = new Gdiplus::Color(Gdiplus::Color::Red);
 		this->backgroundColor = new Gdiplus::Color(Gdiplus::Color::White);
-		this->position = new Gdiplus::PointF(0, 0);
+		this->position = new Gdiplus::PointF(1, 1);
+		this->tempPosition = new Gdiplus::PointF(0, 0);
 		this->scale = 0;
 		this->antialiasing = FALSE;
 	}
@@ -186,10 +190,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-			Gdiplus::Graphics g(hdc);
-			Gdiplus::SolidBrush * brush = new Gdiplus::SolidBrush(*config->fillColor);
-			Gdiplus::Status status = g.DrawString(config->text, -1, config->font, *config->position, brush);
-            EndPaint(hWnd, &ps);
+			{
+				Gdiplus::Graphics g(hdc);
+				Gdiplus::Graphics g2(hdc);
+				Gdiplus::SolidBrush * fillBrush = new Gdiplus::SolidBrush(*config->fillColor);
+				Gdiplus::SolidBrush * outBrush = new Gdiplus::SolidBrush(*config->outlineColor);
+				Gdiplus::Status status = g.DrawString(config->text, -1, config->tempFont, *config->tempPosition, outBrush);
+				Gdiplus::Status status2 = g2.DrawString(config->text, -1, config->font, *config->position, fillBrush);
+				EndPaint(hWnd, &ps);
+			}
         }
         break;
     case WM_DESTROY:
