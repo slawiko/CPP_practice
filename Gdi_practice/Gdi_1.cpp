@@ -12,32 +12,38 @@
 // Global Variables:
 struct Config
 {
-	LPWSTR text;
-	Gdiplus::Font * font;
+	wchar_t * text;
+	wchar_t * font;
+	float height;
+	float angle;
 	Gdiplus::Font * tempFont;
 	Gdiplus::Color * fillColor;
 	Gdiplus::Color * outlineColor;
 	Gdiplus::Color * backgroundColor;
 	Gdiplus::PointF * position;
-	Gdiplus::PointF * tempPosition;
 	float scale;
 	bool antialiasing;
-	Config()
+	bool defaultRegion;
+	void init()
 	{
  		this->text = L"TEXT";
-		this->font = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 24);
+		this->font = L"Times new roman";
+		this->height = 24;
+		this->angle = 0;
 		this->tempFont = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 25);
 		this->fillColor = new Gdiplus::Color(Gdiplus::Color::Black);
 		this->outlineColor = new Gdiplus::Color(Gdiplus::Color::Red);
 		this->backgroundColor = new Gdiplus::Color(Gdiplus::Color::White);
-		this->position = new Gdiplus::PointF(1, 1);
-		this->tempPosition = new Gdiplus::PointF(0, 0);
-		this->scale = 0;
-		this->antialiasing = FALSE;
+		this->position = new Gdiplus::PointF(0, 0);
+		this->scale = 3;
+		this->antialiasing = true;
+		this->defaultRegion = false;
 	}
 };
-Config * config;
+Config config;
+HRGN oldR;
 HINSTANCE hInst;                                // current instance
+HWND hWnd;
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
@@ -45,7 +51,6 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    Settings(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -65,8 +70,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return FALSE;
 	}
 
-	config = new Config();
-
+	config.init();
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_GDI_1, szWindowClass, MAX_LOADSTRING);
@@ -138,16 +142,30 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {
       return FALSE;
    }
+	Gdiplus::Graphics g(hWnd);
+	Gdiplus::GraphicsPath path;
+	path.AddString(config.text, -1, new Gdiplus::FontFamily(config.font), Gdiplus::FontStyleRegular, config.height * config.scale, *config.position, new Gdiplus::StringFormat());
+	Gdiplus::Region r(&path);
+	GetWindowRgn(hWnd, oldR);
+	RECT rect, rect1;
+	GetClientRect(hWnd, &rect);
+	ClientToScreen(hWnd, (LPPOINT)&rect);
+	GetWindowRect(hWnd, &rect1);
+	HRGN h = r.GetHRGN(&g);
+	OffsetRgn(h, (rect.left - rect1.left), (rect.top - rect1.top));
+	SetWindowRgn(hWnd, h, TRUE);
+	//SetWindowRgn(hWnd, oldR, FALSE);
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
+   DialogBox(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, Settings);
 
    return TRUE;
 }
@@ -164,6 +182,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	PAINTSTRUCT ps;
     switch (message)
     {
     case WM_COMMAND:
@@ -172,12 +191,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-			case IDM_FILE_SETTINGS:
+			/*case IDM_FILE_SETTINGS:
 				DialogBox(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, Settings);
-				break;
+				break;*/
             case IDM_EXIT:
                 DestroyWindow(hWnd);
                 break;
@@ -188,17 +204,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break; 
     case WM_PAINT:
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-			{
-				Gdiplus::Graphics g(hdc);
-				Gdiplus::Graphics g2(hdc);
-				Gdiplus::SolidBrush * fillBrush = new Gdiplus::SolidBrush(*config->fillColor);
-				Gdiplus::SolidBrush * outBrush = new Gdiplus::SolidBrush(*config->outlineColor);
-				Gdiplus::Status status = g.DrawString(config->text, -1, config->tempFont, *config->tempPosition, outBrush);
-				Gdiplus::Status status2 = g2.DrawString(config->text, -1, config->font, *config->position, fillBrush);
-				EndPaint(hWnd, &ps);
-			}
+			HDC hdc = BeginPaint(hWnd, &ps);
+			Gdiplus::Graphics g(hdc);
+			Gdiplus::Font myFont(new Gdiplus::FontFamily(L"Arial"), 16);
+			Gdiplus::PointF layoutRect(0, 0);
+			Gdiplus::StringFormat format;
+			Gdiplus::SolidBrush blackBrush(Gdiplus::Color(255, 0, 0, 0));
+			Gdiplus::GraphicsPath path;
+			path.AddString(config.text, -1, new Gdiplus::FontFamily(config.font), Gdiplus::FontStyleRegular, config.height, *config.position, &format);
+			g.Clear(*config.backgroundColor);
+			g.RotateTransform(config.angle);
+			g.ScaleTransform(config.scale, config.scale);
+			g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
+			g.DrawPath(new Gdiplus::Pen(*config.outlineColor, 2.f), &path);
+			g.FillPath(new Gdiplus::SolidBrush(*config.fillColor), &path);
+			EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
@@ -210,44 +230,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
-}
-
 INT_PTR CALLBACK Settings(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 	switch (message)
 	{
 	case WM_INITDIALOG:
-		return (INT_PTR)TRUE;
+	{
+		SetDlgItemTextW(hDlg, IDC_EDIT_TEXT, config.text);
+		SetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, config.font);
+		SetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, config.height, FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, config.fillColor->GetValue(), FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, config.outlineColor->GetValue(), FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, config.backgroundColor->GetValue(), FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_X, config.position->X, FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_Y, config.position->Y, FALSE);
+		SetDlgItemInt(hDlg, IDC_EDIT_ANGLE, config.angle, TRUE);
+		wchar_t s[32];
+		_scwprintf(s, L"%lf", &config.scale);
+		SetDlgItemTextW(hDlg, IDC_EDIT_SCALE, s);
+		CheckDlgButton(hDlg, IDC_CHECK_QUALITY, config.antialiasing);
+		CheckDlgButton(hDlg, IDC_CHECK_REGION, config.defaultRegion);
+		PostMessage(hWnd, WM_PAINT, 0, 0);
+	}
+	return (INT_PTR)TRUE;
 
 	case WM_COMMAND:
-		if (LOWORD(wParam) == IDCANCEL)
-		{
-			EndDialog(hDlg, LOWORD(wParam));
-			return (INT_PTR)TRUE;
-		}
 		if (LOWORD(wParam) == IDOK)
 		{
-			GetDlgItemText(hDlg, IDC_TEXT, config->text, 100);
-			EndDialog(hDlg, LOWORD(wParam));
+			GetDlgItemTextW(hDlg, IDC_EDIT_TEXT, config.text, 0);
+			GetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, config.font, 0);
+			config.height = GetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, FALSE, FALSE);
+			config.fillColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, FALSE, FALSE));
+			config.outlineColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, FALSE, FALSE));
+			config.backgroundColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, FALSE, FALSE));
+			config.position->X = GetDlgItemInt(hDlg, IDC_EDIT_X, FALSE, FALSE);
+			config.position->Y = GetDlgItemInt(hDlg, IDC_EDIT_Y, FALSE, FALSE);
+			config.angle = GetDlgItemInt(hDlg, IDC_EDIT_ANGLE, FALSE, FALSE);
+			wchar_t s[32];
+			_scwprintf(s, L"%lf", &config.scale);
+			GetDlgItemTextW(hDlg, IDC_EDIT_SCALE, config.text, 0);
+			config.antialiasing = IsDlgButtonChecked(hDlg, IDC_CHECK_QUALITY);
+			config.defaultRegion = IsDlgButtonChecked(hDlg, IDC_CHECK_REGION);
+			PostMessage(hWnd, WM_PAINT, 0, 0);
+			return (INT_PTR)TRUE;
+		}
+		if (LOWORD(wParam) == IDCANCEL)
+		{
+			PostQuitMessage(0);
 			return (INT_PTR)TRUE;
 		}
 
