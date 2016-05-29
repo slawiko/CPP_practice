@@ -16,11 +16,10 @@ struct Config
 	wchar_t * font;
 	float height;
 	float angle;
-	Gdiplus::Font * tempFont;
-	Gdiplus::Color * fillColor;
-	Gdiplus::Color * outlineColor;
-	Gdiplus::Color * backgroundColor;
-	Gdiplus::PointF * position;
+	Gdiplus::Color fillColor;
+	Gdiplus::Color outlineColor;
+	Gdiplus::Color backgroundColor;
+	Gdiplus::PointF position;
 	float scale;
 	bool antialiasing;
 	bool defaultRegion;
@@ -30,18 +29,18 @@ struct Config
 		this->font = L"Times new roman";
 		this->height = 24;
 		this->angle = 0;
-		this->tempFont = new Gdiplus::Font(&Gdiplus::FontFamily(L"Times new roman"), 25);
-		this->fillColor = new Gdiplus::Color(Gdiplus::Color::Black);
-		this->outlineColor = new Gdiplus::Color(Gdiplus::Color::Red);
-		this->backgroundColor = new Gdiplus::Color(Gdiplus::Color::White);
-		this->position = new Gdiplus::PointF(0, 0);
+		this->fillColor = Gdiplus::Color(255, 255, 0);
+		this->outlineColor = Gdiplus::Color::Red;
+		this->backgroundColor = Gdiplus::Color::White;
+		this->position = Gdiplus::PointF(0, 0);
 		this->scale = 3;
 		this->antialiasing = true;
-		this->defaultRegion = false;
+		this->defaultRegion = true;
 	}
 };
 Config config;
-HRGN oldR;
+HRGN oldRgn;
+Gdiplus::Rect rectangle;
 HINSTANCE hInst;                                // current instance
 HWND hWnd;
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
@@ -149,19 +148,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
-	Gdiplus::Graphics g(hWnd);
-	Gdiplus::GraphicsPath path;
-	path.AddString(config.text, -1, new Gdiplus::FontFamily(config.font), Gdiplus::FontStyleRegular, config.height * config.scale, *config.position, new Gdiplus::StringFormat());
-	Gdiplus::Region r(&path);
-	GetWindowRgn(hWnd, oldR);
-	RECT rect, rect1;
-	GetClientRect(hWnd, &rect);
-	ClientToScreen(hWnd, (LPPOINT)&rect);
-	GetWindowRect(hWnd, &rect1);
-	HRGN h = r.GetHRGN(&g);
-	OffsetRgn(h, (rect.left - rect1.left), (rect.top - rect1.top));
-	SetWindowRgn(hWnd, h, TRUE);
-	//SetWindowRgn(hWnd, oldR, FALSE);
+
+   GetWindowRgn(hWnd, oldRgn);
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
@@ -191,9 +179,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
-			/*case IDM_FILE_SETTINGS:
-				DialogBox(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, Settings);
-				break;*/
             case IDM_EXIT:
                 DestroyWindow(hWnd);
                 break;
@@ -201,23 +186,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
         }
-        break; 
-    case WM_PAINT:
-        {
-			HDC hdc = BeginPaint(hWnd, &ps);
-			Gdiplus::Graphics g(hdc);
-			Gdiplus::Font myFont(new Gdiplus::FontFamily(L"Arial"), 16);
-			Gdiplus::PointF layoutRect(0, 0);
-			Gdiplus::StringFormat format;
-			Gdiplus::SolidBrush blackBrush(Gdiplus::Color(255, 0, 0, 0));
+        break;
+	case WM_RBUTTONUP:
+		DialogBox(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, Settings);
+		{
+			Gdiplus::Graphics g(hWnd);
 			Gdiplus::GraphicsPath path;
-			path.AddString(config.text, -1, new Gdiplus::FontFamily(config.font), Gdiplus::FontStyleRegular, config.height, *config.position, &format);
-			g.Clear(*config.backgroundColor);
+			path.AddString(config.text,
+							-1,
+							new Gdiplus::FontFamily(config.font),
+							Gdiplus::FontStyleRegular,
+							config.height,
+							config.position,
+							new Gdiplus::StringFormat());
 			g.RotateTransform(config.angle);
 			g.ScaleTransform(config.scale, config.scale);
 			g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
-			g.DrawPath(new Gdiplus::Pen(*config.outlineColor, 2.f), &path);
-			g.FillPath(new Gdiplus::SolidBrush(*config.fillColor), &path);
+			Gdiplus::Region r(&path);
+			RECT rect, rect1;
+			GetClientRect(hWnd, &rect);
+			ClientToScreen(hWnd, (LPPOINT)&rect);
+			GetWindowRect(hWnd, &rect1);
+			HRGN h = r.GetHRGN(&g);
+			OffsetRgn(h, (rect.left - rect1.left), (rect.top - rect1.top));
+			SetWindowRgn(hWnd, config.defaultRegion ? oldRgn : h, TRUE);
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		break;
+    case WM_PAINT:
+        {
+			HDC hdc = BeginPaint(hWnd, &ps);
+			{
+				Gdiplus::Graphics g(hdc);
+				Gdiplus::GraphicsPath path;
+				path.AddString(config.text,
+								-1,
+								new Gdiplus::FontFamily(config.font),
+								Gdiplus::FontStyleRegular,
+								config.height,
+								config.position,
+								new Gdiplus::StringFormat);
+				g.Clear(config.backgroundColor);
+				g.RotateTransform(config.angle);
+				g.ScaleTransform(config.scale, config.scale);
+				g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
+				g.DrawPath(new Gdiplus::Pen(config.outlineColor, 2.f), &path);
+				g.FillPath(new Gdiplus::SolidBrush(config.fillColor), &path);
+			}
 			EndPaint(hWnd, &ps);
         }
         break;
@@ -230,54 +245,59 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+void copy(wchar_t*& text, wchar_t* buff)
+{
+	text = (new wchar_t[wcslen(buff)]);
+	for (int i = 0; i < wcslen(buff); i++)
+	{
+		text[i] = buff[i];
+	}
+	text[wcslen(buff)] = L'\0';
+}
+
 INT_PTR CALLBACK Settings(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 	switch (message)
 	{
 	case WM_INITDIALOG:
-	{
-		SetDlgItemTextW(hDlg, IDC_EDIT_TEXT, config.text);
-		SetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, config.font);
-		SetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, config.height, FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, config.fillColor->GetValue(), FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, config.outlineColor->GetValue(), FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, config.backgroundColor->GetValue(), FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_X, config.position->X, FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_Y, config.position->Y, FALSE);
-		SetDlgItemInt(hDlg, IDC_EDIT_ANGLE, config.angle, TRUE);
-		wchar_t s[32];
-		_scwprintf(s, L"%lf", &config.scale);
-		SetDlgItemTextW(hDlg, IDC_EDIT_SCALE, s);
-		CheckDlgButton(hDlg, IDC_CHECK_QUALITY, config.antialiasing);
-		CheckDlgButton(hDlg, IDC_CHECK_REGION, config.defaultRegion);
-		PostMessage(hWnd, WM_PAINT, 0, 0);
-	}
-	return (INT_PTR)TRUE;
+		{
+			SetDlgItemTextW(hDlg, IDC_EDIT_TEXT, config.text);
+			SetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, config.font);
+			SetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, config.height, FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, config.fillColor.GetValue(), FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, config.outlineColor.GetValue(), FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, config.backgroundColor.GetValue(), FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_X, config.position.X, FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_Y, config.position.Y, FALSE);
+			SetDlgItemInt(hDlg, IDC_EDIT_ANGLE, config.angle, TRUE);
+			wchar_t s[32];
+			swprintf(s, -1, L"%.2f", config.scale);
+			SetDlgItemTextW(hDlg, IDC_EDIT_SCALE, s);
+			CheckDlgButton(hDlg, IDC_CHECK_QUALITY, config.antialiasing);
+			CheckDlgButton(hDlg, IDC_CHECK_REGION, config.defaultRegion);
+		}
+		return (INT_PTR)TRUE;
 
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK)
 		{
-			GetDlgItemTextW(hDlg, IDC_EDIT_TEXT, config.text, 0);
-			GetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, config.font, 0);
-			config.height = GetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, FALSE, FALSE);
-			config.fillColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, FALSE, FALSE));
-			config.outlineColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, FALSE, FALSE));
-			config.backgroundColor->SetValue(GetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, FALSE, FALSE));
-			config.position->X = GetDlgItemInt(hDlg, IDC_EDIT_X, FALSE, FALSE);
-			config.position->Y = GetDlgItemInt(hDlg, IDC_EDIT_Y, FALSE, FALSE);
-			config.angle = GetDlgItemInt(hDlg, IDC_EDIT_ANGLE, FALSE, FALSE);
-			wchar_t s[32];
-			_scwprintf(s, L"%lf", &config.scale);
-			GetDlgItemTextW(hDlg, IDC_EDIT_SCALE, config.text, 0);
+			wchar_t buff[32];
+			GetDlgItemTextW(hDlg, IDC_EDIT_TEXT, buff, sizeof(buff));
+			copy(config.text, buff);
+			GetDlgItemTextW(hDlg, IDC_EDIT_FONT_FAMILY, buff, sizeof(buff));
+			copy(config.font, buff);
+			config.height = GetDlgItemInt(hDlg, IDC_EDIT_FONT_SIZE, 0, 0);
+			config.fillColor = GetDlgItemInt(hDlg, IDC_EDIT_FILL_COLOR, 0, 0);
+			config.outlineColor = GetDlgItemInt(hDlg, IDC_EDIT_OUTLINE_COLOR, 0, 0);
+			config.backgroundColor = GetDlgItemInt(hDlg, IDC_EDIT_BACKGROUND_COLOR, 0, 0);
+			config.position.X = GetDlgItemInt(hDlg, IDC_EDIT_X, 0, 0);
+			config.position.Y = GetDlgItemInt(hDlg, IDC_EDIT_Y, 0, 0);
+			config.angle = GetDlgItemInt(hDlg, IDC_EDIT_ANGLE, 0, 0);
+			config.scale = GetDlgItemInt(hDlg, IDC_EDIT_SCALE, 0, 0);
 			config.antialiasing = IsDlgButtonChecked(hDlg, IDC_CHECK_QUALITY);
 			config.defaultRegion = IsDlgButtonChecked(hDlg, IDC_CHECK_REGION);
-			PostMessage(hWnd, WM_PAINT, 0, 0);
-			return (INT_PTR)TRUE;
-		}
-		if (LOWORD(wParam) == IDCANCEL)
-		{
-			PostQuitMessage(0);
+			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
 		}
 
