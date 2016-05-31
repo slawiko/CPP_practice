@@ -201,7 +201,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							new Gdiplus::StringFormat());
 			g.RotateTransform(config.angle);
 			g.ScaleTransform(config.scale, config.scale);
-			g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
+			if (config.antialiasing)
+			{
+				g.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+			}
 			Gdiplus::Region r(&path);
 			RECT rect, rect1;
 			GetClientRect(hWnd, &rect);
