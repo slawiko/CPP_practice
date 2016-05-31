@@ -229,7 +229,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				g.Clear(config.backgroundColor);
 				g.RotateTransform(config.angle);
 				g.ScaleTransform(config.scale, config.scale);
-				g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
+				if (config.antialiasing)
+				{
+					g.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+				}
+				//g.SetSmoothingMode(config.antialiasing ? Gdiplus::SmoothingModeHighQuality : );
 				g.DrawPath(new Gdiplus::Pen(config.outlineColor, 2.f), &path);
 				g.FillPath(new Gdiplus::SolidBrush(config.fillColor), &path);
 			}
