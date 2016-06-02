@@ -69,7 +69,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return FALSE;
 	}
 
-	config.init();
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_GDI_1, szWindowClass, MAX_LOADSTRING);
@@ -139,6 +138,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
+   config.init();
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
@@ -201,7 +201,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							new Gdiplus::StringFormat());
 			g.RotateTransform(config.angle);
 			g.ScaleTransform(config.scale, config.scale);
-			g.SetInterpolationMode(config.antialiasing ? Gdiplus::InterpolationModeHighQuality : Gdiplus::InterpolationModeLowQuality);
+			if (config.antialiasing)
+			{
+				g.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+			}
 			Gdiplus::Region r(&path);
 			RECT rect, rect1;
 			GetClientRect(hWnd, &rect);
